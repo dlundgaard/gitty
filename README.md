@@ -1,3 +1,3 @@
 # Gitty
 
-Command line utility for enhancing workflow when using the Git CLI. 
+Command line utility for enhanced workflow when using the Git CLI. 
