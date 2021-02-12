@@ -134,22 +134,23 @@ fn do_commit() {
     let unstaged_files = get_not_staged_files();
     if staged_files.is_empty() {
         println!("There are no staged files");
+        return;
     } else if unstaged_files.len() > 0 {
-        if Confirm::new()
-            .with_prompt("There are unstaged files. Do you want to continue?")
+        let commit_despite_unstaged_file = Confirm::new()
+            .with_prompt("There are unstaged files. Do you want to commit anyway?")
             .interact()
-            .unwrap() 
-        { 
-            let command_output = Command::new("git")
-                .args(&["commit"])
-                .output()
-                .expect("git command failed");
-            let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-            println!("{}", output_as_string);
+            .unwrap();
+        if !commit_despite_unstaged_file { 
+            return;
         }
-    } else {
-        // TODO 
-    }
+    } 
+    let mut command_handle = Command::new("git")
+        .args(&["commit"])
+        .spawn()
+        .expect("git command failed");
+    let exit_code = command_handle.wait().expect("git command failed");
+    //let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    //println!("{}", output_as_string);
 }
 
 fn do_push() {
