@@ -12,9 +12,8 @@ use console::Term;
 
 // TODO
 // fix bug when file is both staged and has unstaged updates at the same time
-// remove all println's and use Term.write_line
-// error handling
 // figure out getting colored terminal output when collecting from git status
+// add selector for checkout, branches
 
 fn get_git_root_dir() -> String {
     let command_output = Command::new("git")
@@ -71,7 +70,7 @@ fn show_status() {
 
 fn show_log() {
     let command_handle = Command::new("git")
-        .args(&["--no-pager", "log"])
+        .args(&["--no-pager", "log", "--reverse"])
         .output()
         .expect("git log failed");
     let output_as_string = String::from_utf8_lossy(&command_handle.stdout);
@@ -92,7 +91,10 @@ fn show_diff() {
 fn staging_mode(repo_root_dir: &str) {
     let unstaged_files = get_not_staged_files();
     let unstaged_files_names: Vec<String> = unstaged_files.into_iter().map(|pf| pf.file_path).collect();
-    if !unstaged_files_names.is_empty() { 
+    if unstaged_files_names.is_empty() { 
+        println!("There are no unstaged files");
+        confirm_return();
+    } else {
         let selections = MultiSelect::new()
             .with_prompt("Which files should be staged?")
             .items(&unstaged_files_names[..])
@@ -106,20 +108,19 @@ fn staging_mode(repo_root_dir: &str) {
                 .output()
                 .expect("git add failed");
             let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-            println!("out {:?}", command_output);
             Term::stdout().write_str(&output_as_string).unwrap();
             println!("{} added to staging area", unstaged_files_names[selected]);
         }
-    } else {
-        println!("There are unstaged files");
-        confirm_return();
     }
 }
 
 fn unstaging_mode(repo_root_dir: &str) {
     let staged_files = get_staged_files();
     let staged_files_names: Vec<String> = staged_files.into_iter().map(|pf| pf.file_path).collect();
-    if !staged_files_names.is_empty() { 
+    if staged_files_names.is_empty() { 
+        println!("There are no staged files");
+        confirm_return();
+    } else {
         let selections = MultiSelect::new()
             .with_prompt("Which files should be unstaged?")
             .items(&staged_files_names[..])
@@ -136,9 +137,6 @@ fn unstaging_mode(repo_root_dir: &str) {
             Term::stdout().write_str(&output_as_string).unwrap();
             println!("{} removed from staging area", staged_files_names[selected]);
         }
-    } else {
-        println!("There are no staged files");
-        confirm_return();
     }
 }
 
@@ -194,7 +192,7 @@ enum FileState {
     RENAMED,
     REMOVED,
     UNTRACKED,
-    UNSTAGED,
+    UNCHANGED,
     UNKNOWN,
 }
 
@@ -207,14 +205,16 @@ struct ProjectFile {
 impl ProjectFile {
     fn from_line(line: &str) -> ProjectFile {
         let (state_code, file_path_raw) = line.split_at(2);
-        let state_char = state_code.chars().next().unwrap_or('X');
-        let state = match state_char {
+        let mut state_code_chars = state_code.chars();
+        state_code_chars.next();
+        let unstaged_state_code = state_code_chars.next().unwrap_or('_');
+        let state = match unstaged_state_code {
             'A' => FileState::ADDED,
             'M' => FileState::MODIFIED,
             'R' => FileState::RENAMED,
             'D' => FileState::REMOVED,
             '?' => FileState::UNTRACKED,
-            ' ' => FileState::UNSTAGED,
+            ' ' => FileState::UNCHANGED,
              _  => FileState::UNKNOWN,
         };
         let file_path = String::from(file_path_raw.trim());
@@ -223,9 +223,8 @@ impl ProjectFile {
 
     fn is_staged(&self) -> bool {
         match self.state {
-            FileState::UNSTAGED     => false,
-            FileState::UNTRACKED    => false,
-            _                       => true,
+            FileState::UNCHANGED    => true,
+            _                       => false,
         }
     }
 
