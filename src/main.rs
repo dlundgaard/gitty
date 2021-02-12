@@ -203,6 +203,7 @@ struct ProjectFile {
 }
 
 impl ProjectFile {
+    // Documentation: https://git-scm.com/docs/git-status
     fn from_line(line: &str) -> ProjectFile {
         let (state_code, file_path_raw) = line.split_at(2);
         let mut state_code_chars = state_code.chars();
