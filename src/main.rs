@@ -11,6 +11,7 @@ use dialoguer::{
 use console::Term;
 
 // TODO
+// fix bug when file is both staged and has unstaged updates at the same time
 // remove all println's and use Term.write_line
 // error handling
 // figure out getting colored terminal output when collecting from git status
@@ -19,7 +20,7 @@ fn get_git_root_dir() -> String {
     let command_output = Command::new("git")
         .args(&["rev-parse", "--show-toplevel"])
         .output()
-        .expect("git command failed");
+        .expect("getting git repo root directory failed");
     let mut output_as_string = String::from_utf8_lossy(&command_output.stdout).to_string();
     output_as_string.pop(); // remove trailing newline from output
     output_as_string.to_owned()
@@ -29,7 +30,7 @@ fn get_changed_files() -> Vec<ProjectFile> {
     let command_output = Command::new("git")
         .args(&["status", "--porcelain"])
         .output()
-        .expect("git command failed");
+        .expect("getting status of changed files in repo failed");
     let output_as_string = String::from_utf8_lossy(&command_output.stdout);
     let lines: Vec<&str> = output_as_string.split("\n").filter(|&s| !s.is_empty()).collect();
     lines.into_iter().map(ProjectFile::from_line).collect()
@@ -58,75 +59,87 @@ fn confirm_return() {
     clear_lines(2);
 }
 
-fn print_status() {
+fn show_status() {
     let command_output = Command::new("git")
         .args(&["status"])
         .output()
-        .expect("git command failed");
+        .expect("git status failed");
     let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    let amount_lines = output_as_string.matches("\n").count();
     Term::stdout().write_str(&output_as_string).unwrap();
     confirm_return();
-    clear_lines(amount_lines);
+}
+
+fn show_log() {
+    let command_handle = Command::new("git")
+        .args(&["--no-pager", "log"])
+        .output()
+        .expect("git log failed");
+    let output_as_string = String::from_utf8_lossy(&command_handle.stdout);
+    Term::stdout().write_str(&output_as_string).unwrap();
+    confirm_return();
+}
+
+fn show_diff() {
+    let command_output = Command::new("git")
+        .args(&["--no-pager", "diff"])
+        .output()
+        .expect("git diff failed");
+    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    Term::stdout().write_str(&output_as_string).unwrap();
+    confirm_return();
 }
 
 fn staging_mode(repo_root_dir: &str) {
     let unstaged_files = get_not_staged_files();
     let unstaged_files_names: Vec<String> = unstaged_files.into_iter().map(|pf| pf.file_path).collect();
-    let mut amount_lines = 0;
     if !unstaged_files_names.is_empty() { 
         let selections = MultiSelect::new()
             .with_prompt("Which files should be staged?")
             .items(&unstaged_files_names[..])
             .interact()
             .unwrap();
-        amount_lines += selections.len() + 1;
         for selected in selections {
+            let file_to_be_staged = &unstaged_files_names[selected];
             let command_output = Command::new("git")
-                .args(&["add", &unstaged_files_names[selected]])
+                .args(&["add", file_to_be_staged])
                 .current_dir(&repo_root_dir)
                 .output()
-                .expect("git command failed");
+                .expect("git add failed");
             let output_as_string = String::from_utf8_lossy(&command_output.stdout);
             println!("out {:?}", command_output);
-            amount_lines += output_as_string.matches("\n").count();
             Term::stdout().write_str(&output_as_string).unwrap();
             println!("{} added to staging area", unstaged_files_names[selected]);
         }
     } else {
-        println!("No unstaged files");
-        amount_lines += 1;
+        println!("There are unstaged files");
+        confirm_return();
     }
-    clear_lines(amount_lines);
 }
 
 fn unstaging_mode(repo_root_dir: &str) {
     let staged_files = get_staged_files();
     let staged_files_names: Vec<String> = staged_files.into_iter().map(|pf| pf.file_path).collect();
-    let mut amount_lines = 0;
     if !staged_files_names.is_empty() { 
         let selections = MultiSelect::new()
             .with_prompt("Which files should be unstaged?")
             .items(&staged_files_names[..])
             .interact()
             .unwrap();
-        amount_lines += selections.len() + 1;
         for selected in selections {
+            let file_to_be_unstaged = &staged_files_names[selected];
             let command_output = Command::new("git")
-                .args(&["reset", &staged_files_names[selected]])
+                .args(&["reset", file_to_be_unstaged])
                 .current_dir(&repo_root_dir)
                 .output()
-                .expect("git command failed");
+                .expect("git reset failed");
             let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-            amount_lines += output_as_string.matches("\n").count();
             Term::stdout().write_str(&output_as_string).unwrap();
             println!("{} removed from staging area", staged_files_names[selected]);
         }
     } else {
-        println!("No staged files");
-        amount_lines += 1;
+        println!("There are no staged files");
+        confirm_return();
     }
-    clear_lines(amount_lines);
 }
 
 fn do_commit() {
@@ -137,7 +150,7 @@ fn do_commit() {
         return;
     } else if unstaged_files.len() > 0 {
         let commit_despite_unstaged_file = Confirm::new()
-            .with_prompt("There are unstaged files. Do you want to commit anyway?")
+            .with_prompt("There are modified files that have not been staged. Do you want to commit anyway?")
             .interact()
             .unwrap();
         if !commit_despite_unstaged_file { 
@@ -147,16 +160,31 @@ fn do_commit() {
     let mut command_handle = Command::new("git")
         .args(&["commit"])
         .spawn()
-        .expect("git command failed");
-    let exit_code = command_handle.wait().expect("git command failed");
-    //let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    //println!("{}", output_as_string);
+        .expect("git commit failed");
+    command_handle.wait().expect("git commit failed");
 }
 
 fn do_push() {
+    let command_handle = Command::new("git")
+        .args(&["push"])
+        .spawn()
+        .expect("git push failed");
+    let command_output = command_handle.wait_with_output().expect("git push failed");
+    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    Term::stdout().write_str(&output_as_string).unwrap();
+    confirm_return();
 }
 
 fn do_pull() {
+    let mut command_handle = Command::new("git")
+        .args(&["pull"])
+        .spawn()
+        .expect("git pull failed");
+    command_handle.wait().expect("git pull failed");
+    let command_output = command_handle.wait_with_output().expect("git pull failed");
+    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    Term::stdout().write_str(&output_as_string).unwrap();
+    confirm_return();
 }
 
 #[derive(Debug)]
@@ -217,8 +245,8 @@ struct Action<'a> {
 }
 
 impl<'a> Action<'a> {
-    fn new<F>(name: &str, callback_closure: F) -> Action<'a>
-    where F: Fn() + 'a {
+    fn new<C>(name: &str, callback_closure: C) -> Action<'a>
+    where C: Fn() + 'a {
         Action {
             name: String::from(name),
             callback: Box::new(callback_closure),
@@ -241,7 +269,13 @@ fn main() {
     let mut actions: Vec<Action> = Vec::new();
 
     actions.push(
-        Action::new("status", || print_status())
+        Action::new("status", || show_status())
+    );
+    actions.push(
+        Action::new("log", || show_log())
+    );
+    actions.push(
+        Action::new("diff", || show_diff())
     );
     actions.push(
         Action::new("stage", || staging_mode(&git_root_dir))
@@ -262,13 +296,16 @@ fn main() {
         Action::new("exit", || exit_gracefully())
     );
 
+    let mut last_selected = 0;
+
 	loop {
 		let selected = Select::new()
-			.with_prompt("What do you want to do?")
+			.with_prompt("What would you like to do?")
 			.items(&actions)
-			.default(0)
+			.default(last_selected)
 			.interact()
 			.unwrap();
+        last_selected = selected;
         let selected_action = &actions[selected];
         selected_action.run_action();
 	}
