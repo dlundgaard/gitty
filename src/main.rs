@@ -8,7 +8,6 @@ use dialoguer::{
     MultiSelect,
     Confirm,
 };
-use console::Term;
 
 // TODO
 
@@ -52,7 +51,6 @@ fn get_modified_files() -> Vec<ProjectFile> {
 fn get_commit_history() -> Vec<Commit> {
     let command_output = Command::new("git")
         .args(&["log", "--pretty=format:%h | %aD | %s"])
-        //.args(&["log", "--pretty=format:%h | %aD | %s"])
         .output()
         .expect("getting commit history failed");
     let output_as_string = String::from_utf8_lossy(&command_output.stdout);
@@ -73,16 +71,12 @@ fn get_not_staged_files() -> Vec<ProjectFile> {
         .collect()
 }
 
-fn clear_lines(amount_lines_to_clear: usize) {
-    Term::stdout().clear_last_lines(amount_lines_to_clear).unwrap();
-}
-
-fn confirm_return() {
-    Term::stdout().write_str("\nPress any key to go back ").unwrap();
-    Term::stdout().read_key().unwrap();
-    Term::stdout().write_line("").unwrap();
-    clear_lines(2);
-}
+//fn confirm_return() {
+//    Term::stdout().write_str("\nPress any key to go back ").unwrap();
+//    Term::stdout().read_key().unwrap();
+//    Term::stdout().write_line("").unwrap();
+//    Term::stdout().clear_last_lines(2).unwrap();
+//}
 
 fn show_status() {
     run_command(
@@ -90,7 +84,6 @@ fn show_status() {
         &["status"], 
         "git status failed"
     );
-    confirm_return();
 }
 
 fn show_log() {
@@ -99,7 +92,6 @@ fn show_log() {
         &["--no-pager", "log", "--reverse"], 
         "git log failed"
     );
-    confirm_return();
 }
 
 fn show_diff() {
@@ -108,14 +100,12 @@ fn show_diff() {
         &["--no-pager", "diff", "--reverse"], 
         "git diff failed"
     );
-    confirm_return();
 }
 
 fn staging_mode(repo_root_dir: &str) {
     let unstaged_files = get_not_staged_files();
     if unstaged_files.is_empty() { 
         println!("There are no unstaged files");
-        confirm_return();
     } else {
         let selections = MultiSelect::new()
             .with_prompt("Which files should be staged?")
@@ -139,7 +129,6 @@ fn unstaging_mode(repo_root_dir: &str) {
     let staged_files = get_staged_files();
     if staged_files.is_empty() { 
         println!("There are no staged files");
-        confirm_return();
     } else {
         let selections = MultiSelect::new()
             .with_prompt("Which files should be unstaged?")
@@ -187,7 +176,6 @@ fn do_push() {
         &["push"], 
         "git push failed"
     );
-    confirm_return();
 }
 
 fn do_pull() {
@@ -196,7 +184,6 @@ fn do_pull() {
         &["pull"], 
         "git pull failed"
     );
-    confirm_return();
 }
 
 fn checkout_mode() {
@@ -373,7 +360,7 @@ fn main() {
 
 	loop {
 		let selected = Select::new()
-			.with_prompt("What would you like to do?")
+			.with_prompt("\nWhat would you like to do?")
 			.items(&actions)
 			.default(last_selected)
 			.interact()
