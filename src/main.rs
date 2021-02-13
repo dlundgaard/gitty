@@ -11,8 +11,6 @@ use dialoguer::{
 use console::Term;
 
 // TODO
-// fix bug when file is both staged and has unstaged updates at the same time
-// figure out getting colored terminal output when collecting from git status
 // add selector for checkout, branches
 
 fn get_git_root_dir() -> String {
@@ -58,84 +56,94 @@ fn confirm_return() {
     clear_lines(2);
 }
 
+fn run_command(command_name: &str, command_args: &[&str], error_message: &str) {
+    let mut command_handle = Command::new(command_name)
+        .args(command_args)
+        .spawn()
+        .expect(error_message);
+    command_handle.wait().expect(error_message);
+}
+
+fn run_command_in_dir(in_directory: &str, command_name: &str, command_args: &[&str], error_message: &str) {
+    let mut command_handle = Command::new(command_name)
+        .args(command_args)
+        .current_dir(in_directory)
+        .spawn()
+        .expect(error_message);
+    command_handle.wait().expect(error_message);
+}
+
 fn show_status() {
-    let command_output = Command::new("git")
-        .args(&["status"])
-        .output()
-        .expect("git status failed");
-    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    Term::stdout().write_str(&output_as_string).unwrap();
+    run_command(
+        "git", 
+        &["status"], 
+        "git status failed"
+    );
     confirm_return();
 }
 
 fn show_log() {
-    let command_handle = Command::new("git")
-        .args(&["--no-pager", "log", "--reverse"])
-        .output()
-        .expect("git log failed");
-    let output_as_string = String::from_utf8_lossy(&command_handle.stdout);
-    Term::stdout().write_str(&output_as_string).unwrap();
+    run_command(
+        "git", 
+        &["--no-pager", "log", "--reverse"], 
+        "git log failed"
+    );
     confirm_return();
 }
 
 fn show_diff() {
-    let command_output = Command::new("git")
-        .args(&["--no-pager", "diff"])
-        .output()
-        .expect("git diff failed");
-    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    Term::stdout().write_str(&output_as_string).unwrap();
+    run_command(
+        "git", 
+        &["--no-pager", "diff", "--reverse"], 
+        "git diff failed"
+    );
     confirm_return();
 }
 
 fn staging_mode(repo_root_dir: &str) {
     let unstaged_files = get_not_staged_files();
-    let unstaged_files_names: Vec<String> = unstaged_files.into_iter().map(|pf| pf.file_path).collect();
-    if unstaged_files_names.is_empty() { 
+    if unstaged_files.is_empty() { 
         println!("There are no unstaged files");
         confirm_return();
     } else {
         let selections = MultiSelect::new()
             .with_prompt("Which files should be staged?")
-            .items(&unstaged_files_names[..])
+            .items(&unstaged_files)
             .interact()
             .unwrap();
         for selected in selections {
-            let file_to_be_staged = &unstaged_files_names[selected];
-            let command_output = Command::new("git")
-                .args(&["add", file_to_be_staged])
-                .current_dir(&repo_root_dir)
-                .output()
-                .expect("git add failed");
-            let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-            Term::stdout().write_str(&output_as_string).unwrap();
-            println!("{} added to staging area", unstaged_files_names[selected]);
+            let file_to_be_staged = &unstaged_files[selected].file_path;
+            run_command_in_dir(
+                &repo_root_dir,
+                "git", 
+                &["add", file_to_be_staged], 
+                &format!("git add \"{}\" failed", file_to_be_staged), 
+            );
+            println!("{} added to staging area", file_to_be_staged);
         }
     }
 }
 
 fn unstaging_mode(repo_root_dir: &str) {
     let staged_files = get_staged_files();
-    let staged_files_names: Vec<String> = staged_files.into_iter().map(|pf| pf.file_path).collect();
-    if staged_files_names.is_empty() { 
+    if staged_files.is_empty() { 
         println!("There are no staged files");
         confirm_return();
     } else {
         let selections = MultiSelect::new()
             .with_prompt("Which files should be unstaged?")
-            .items(&staged_files_names[..])
+            .items(&staged_files)
             .interact()
             .unwrap();
         for selected in selections {
-            let file_to_be_unstaged = &staged_files_names[selected];
-            let command_output = Command::new("git")
-                .args(&["reset", file_to_be_unstaged])
-                .current_dir(&repo_root_dir)
-                .output()
-                .expect("git reset failed");
-            let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-            Term::stdout().write_str(&output_as_string).unwrap();
-            println!("{} removed from staging area", staged_files_names[selected]);
+            let file_to_be_unstaged = &staged_files[selected].file_path;
+            run_command_in_dir(
+                &repo_root_dir,
+                "git", 
+                &["reset", file_to_be_unstaged], 
+                &format!("git reset \"{}\" failed", file_to_be_unstaged), 
+            );
+            println!("{} removed from staging area", file_to_be_unstaged);
         }
     }
 }
@@ -155,33 +163,28 @@ fn do_commit() {
             return;
         }
     } 
-    let mut command_handle = Command::new("git")
-        .args(&["commit"])
-        .spawn()
-        .expect("git commit failed");
-    command_handle.wait().expect("git commit failed");
+    run_command(
+        "git", 
+        &["commit"], 
+        "git commit failed"
+    );
 }
 
 fn do_push() {
-    let command_handle = Command::new("git")
-        .args(&["push"])
-        .spawn()
-        .expect("git push failed");
-    let command_output = command_handle.wait_with_output().expect("git push failed");
-    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    Term::stdout().write_str(&output_as_string).unwrap();
+    run_command(
+        "git", 
+        &["push"], 
+        "git push failed"
+    );
     confirm_return();
 }
 
 fn do_pull() {
-    let mut command_handle = Command::new("git")
-        .args(&["pull"])
-        .spawn()
-        .expect("git pull failed");
-    command_handle.wait().expect("git pull failed");
-    let command_output = command_handle.wait_with_output().expect("git pull failed");
-    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    Term::stdout().write_str(&output_as_string).unwrap();
+    run_command(
+        "git", 
+        &["pull"], 
+        "git pull failed"
+    );
     confirm_return();
 }
 
@@ -234,9 +237,10 @@ impl ProjectFile {
     }
 }
 
-fn exit_gracefully() {
-    println!("\nThanks for stopping by!"); 
-    exit(0);
+impl fmt::Display for ProjectFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.file_path)
+    }
 }
 
 struct Action<'a> {
@@ -262,6 +266,11 @@ impl fmt::Display for Action<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.name)
     }
+}
+
+fn exit_gracefully() {
+    println!("\nThanks for stopping by!"); 
+    exit(0);
 }
 
 fn main() {
