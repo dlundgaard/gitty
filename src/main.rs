@@ -11,50 +11,6 @@ use dialoguer::{
 use console::Term;
 
 // TODO
-// add selector for checkout, branches
-
-fn get_git_root_dir() -> String {
-    let command_output = Command::new("git")
-        .args(&["rev-parse", "--show-toplevel"])
-        .output()
-        .expect("getting git repo root directory failed");
-    let mut output_as_string = String::from_utf8_lossy(&command_output.stdout).to_string();
-    output_as_string.pop(); // remove trailing newline from output
-    output_as_string.to_owned()
-}
-
-fn get_changed_files() -> Vec<ProjectFile> {
-    let command_output = Command::new("git")
-        .args(&["status", "--porcelain"])
-        .output()
-        .expect("getting status of changed files in repo failed");
-    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
-    let lines: Vec<&str> = output_as_string.split("\n").filter(|&s| !s.is_empty()).collect();
-    lines.into_iter().map(ProjectFile::from_line).collect()
-}
-
-fn get_staged_files() -> Vec<ProjectFile> {
-    get_changed_files().into_iter()
-        .filter(ProjectFile::is_staged)
-        .collect()
-}
-
-fn get_not_staged_files() -> Vec<ProjectFile> {
-    get_changed_files().into_iter()
-        .filter(ProjectFile::is_not_staged)
-        .collect()
-}
-
-fn clear_lines(amount_lines_to_clear: usize) {
-    Term::stdout().clear_last_lines(amount_lines_to_clear).unwrap();
-}
-
-fn confirm_return() {
-    Term::stdout().write_str("\nPress any key to go back ").unwrap();
-    Term::stdout().read_key().unwrap();
-    Term::stdout().write_line("").unwrap();
-    clear_lines(2);
-}
 
 fn run_command(command_name: &str, command_args: &[&str], error_message: &str) {
     let mut command_handle = Command::new(command_name)
@@ -71,6 +27,61 @@ fn run_command_in_dir(in_directory: &str, command_name: &str, command_args: &[&s
         .spawn()
         .expect(error_message);
     command_handle.wait().expect(error_message);
+}
+
+fn get_git_root_dir() -> String {
+    let command_output = Command::new("git")
+        .args(&["rev-parse", "--show-toplevel"])
+        .output()
+        .expect("getting git repo root directory failed");
+    let mut output_as_string = String::from_utf8_lossy(&command_output.stdout).to_string();
+    output_as_string.pop(); // remove trailing newline from output
+    output_as_string.to_owned()
+}
+
+fn get_modified_files() -> Vec<ProjectFile> {
+    let command_output = Command::new("git")
+        .args(&["status", "--porcelain"])
+        .output()
+        .expect("getting status of changed files in repo failed");
+    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    let lines: Vec<&str> = output_as_string.split("\n").filter(|&s| !s.is_empty()).collect();
+    lines.into_iter().map(ProjectFile::from_line).collect()
+}
+
+fn get_commit_history() -> Vec<Commit> {
+    let command_output = Command::new("git")
+        .args(&["log", "--pretty=format:%h | %aD | xx"])
+        //.args(&["log", "--pretty=format:%h | %aD | %s"])
+        .output()
+        .expect("getting commit history failed");
+    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    let lines: Vec<&str> = output_as_string.split("\n").collect();
+    lines.into_iter().map(Commit::from_line).collect()
+
+}
+
+fn get_staged_files() -> Vec<ProjectFile> {
+    get_modified_files().into_iter()
+        .filter(ProjectFile::is_staged)
+        .collect()
+}
+
+fn get_not_staged_files() -> Vec<ProjectFile> {
+    get_modified_files().into_iter()
+        .filter(ProjectFile::is_not_staged)
+        .collect()
+}
+
+fn clear_lines(amount_lines_to_clear: usize) {
+    Term::stdout().clear_last_lines(amount_lines_to_clear).unwrap();
+}
+
+fn confirm_return() {
+    Term::stdout().write_str("\nPress any key to go back ").unwrap();
+    Term::stdout().read_key().unwrap();
+    Term::stdout().write_line("").unwrap();
+    clear_lines(2);
 }
 
 fn show_status() {
@@ -188,6 +199,24 @@ fn do_pull() {
     confirm_return();
 }
 
+fn checkout_mode() {
+    let all_commits = get_commit_history();
+    let selected_opt = Select::new()
+        .with_prompt("Which commit would you like to checkout?")
+        .items(&all_commits)
+        .default(0)
+        .interact_opt()
+        .unwrap();
+    if let Some(selected) = selected_opt {
+        let selected_commit = &all_commits[selected];
+        run_command(
+            "git", 
+            &["checkout", &selected_commit.hash], 
+            &format!("git checkout {} failed", selected_commit.hash)
+        );
+    }
+}
+
 #[derive(Debug)]
 enum FileState {
     ADDED,
@@ -243,6 +272,32 @@ impl fmt::Display for ProjectFile {
     }
 }
 
+struct Commit {
+    hash: String, 
+    date: String,
+    commit_message: String,
+}
+
+impl Commit {
+    fn from_line(line: &str) -> Commit {
+        let mut split_line = line.split(" | ").into_iter();
+        let hash: &str = split_line.next().unwrap();
+        let date: &str = split_line.next().unwrap();
+        let commit_message: &str = split_line.next().unwrap();
+        Commit {
+            hash: String::from(hash),
+            date: String::from(date),
+            commit_message: String::from(commit_message),
+        }
+    }
+}
+
+impl fmt::Display for Commit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} | {} | {}", self.hash, self.date, self.commit_message)
+    }
+}
+
 struct Action<'a> {
     name: String,
     callback: Box<dyn Fn() + 'a>
@@ -294,6 +349,9 @@ fn main() {
     );
     actions.push(
         Action::new("commit", || do_commit())
+    );
+    actions.push(
+        Action::new("checkout", || checkout_mode())
     );
     actions.push(
         Action::new("push", || do_push())
