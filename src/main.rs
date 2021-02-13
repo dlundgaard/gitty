@@ -51,7 +51,7 @@ fn get_modified_files() -> Vec<ProjectFile> {
 
 fn get_commit_history() -> Vec<Commit> {
     let command_output = Command::new("git")
-        .args(&["log", "--pretty=format:%h | %aD | xx"])
+        .args(&["log", "--pretty=format:%h | %aD | %s"])
         //.args(&["log", "--pretty=format:%h | %aD | %s"])
         .output()
         .expect("getting commit history failed");
@@ -275,26 +275,32 @@ impl fmt::Display for ProjectFile {
 struct Commit {
     hash: String, 
     date: String,
-    commit_message: String,
+    message_extract: String,
 }
 
 impl Commit {
     fn from_line(line: &str) -> Commit {
-        let mut split_line = line.split(" | ").into_iter();
+        let mut split_line = line.split(" | ");
         let hash: &str = split_line.next().unwrap();
         let date: &str = split_line.next().unwrap();
         let commit_message: &str = split_line.next().unwrap();
+        let mut message_extract = String::from(commit_message.split("\n").next().unwrap());
+        message_extract.truncate(60);
+        message_extract = String::from(message_extract.trim());
+        if commit_message.len() > message_extract.len() {
+            message_extract.push_str("...");
+        }
         Commit {
             hash: String::from(hash),
             date: String::from(date),
-            commit_message: String::from(commit_message),
+            message_extract: String::from(message_extract),
         }
     }
 }
 
 impl fmt::Display for Commit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} | {} | {}", self.hash, self.date, self.commit_message)
+        write!(f, "{} | {} | {}", self.hash, self.date, self.message_extract)
     }
 }
 
