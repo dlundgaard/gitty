@@ -9,8 +9,6 @@ use dialoguer::{
     Confirm,
 };
 
-// TODO
-
 fn run_command(command_name: &str, command_args: &[&str], error_message: &str) {
     let mut command_handle = Command::new(command_name)
         .args(command_args)
@@ -56,7 +54,16 @@ fn get_commit_history() -> Vec<Commit> {
     let output_as_string = String::from_utf8_lossy(&command_output.stdout);
     let lines: Vec<&str> = output_as_string.split("\n").collect();
     lines.into_iter().map(Commit::from_line).collect()
+}
 
+fn get_branches() -> Vec<String> {
+    let command_output = Command::new("git")
+        .args(&["branch"])
+        .output()
+        .expect("getting branches failed");
+    let output_as_string = String::from_utf8_lossy(&command_output.stdout);
+    let lines: Vec<&str> = output_as_string.split("\n").filter(|&s| !s.is_empty()).collect();
+    lines.into_iter().map(String::from).collect()
 }
 
 fn get_staged_files() -> Vec<ProjectFile> {
@@ -204,6 +211,24 @@ fn checkout_mode() {
     }
 }
 
+fn branch_mode() {
+    let all_branches = get_branches();
+    let selected_opt = Select::new()
+        .with_prompt("Which branch would you like to checkout?")
+        .items(&all_branches)
+        .default(0)
+        .interact_opt()
+        .unwrap();
+    if let Some(selected) = selected_opt {
+        let selected_branch = &all_branches[selected];
+        run_command(
+            "git", 
+            &["branch", &selected_branch], 
+            &format!("git branch {} failed", selected_branch)
+        );
+    }
+}
+
 #[derive(Debug)]
 enum FileState {
     ADDED,
@@ -345,6 +370,9 @@ fn main() {
     );
     actions.push(
         Action::new("checkout", || checkout_mode())
+    );
+    actions.push(
+        Action::new("branch", || branch_mode())
     );
     actions.push(
         Action::new("push", || do_push())
