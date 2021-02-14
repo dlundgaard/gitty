@@ -78,13 +78,6 @@ fn get_not_staged_files() -> Vec<ProjectFile> {
         .collect()
 }
 
-//fn confirm_return() {
-//    Term::stdout().write_str("\nPress any key to go back ").unwrap();
-//    Term::stdout().read_key().unwrap();
-//    Term::stdout().write_line("").unwrap();
-//    Term::stdout().clear_last_lines(2).unwrap();
-//}
-
 fn show_status() {
     run_command(
         "git", 

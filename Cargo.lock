@@ -61,7 +61,6 @@ dependencies = [
 name = "gitty"
 version = "0.1.0"
 dependencies = [
- "console",
  "dialoguer",
 ]
 
