@@ -173,7 +173,7 @@ fn branch_mode() {
         .interact_opt()
         .unwrap();
     if let Some(selected) = selected_opt {
-        let selected_branch = &all_branches[selected];
+        let selected_branch = &all_branches[selected].strip_prefix("* ").unwrap_or_default();
         utils::run_command(
             "git", 
             &["branch", &selected_branch], 
