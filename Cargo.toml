@@ -3,6 +3,10 @@ name = "gitty"
 version = "0.1.0"
 authors = ["dlundgaard <dlundgaard8@gmail.com>"]
 edition = "2018"
+description = "Command line interface for enhanced workflow when using the Git CLI"
+license = "MIT OR Apache-2.0"
+keywords = ["git", "cli", "dialoguer", "workflow", "interface", "utility"]
+categories = ["command-line-interface", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
