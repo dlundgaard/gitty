@@ -29,7 +29,6 @@ pub fn run_command_capture_output(command_name: &str, command_args: &[&str], err
 }
 
 pub fn exit_gracefully() {
-    println!("\nThanks for stopping by!"); 
     exit(0);
 }
 
