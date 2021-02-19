@@ -1,5 +1,8 @@
 # Gitty
 
+[![](https://img.shields.io/crates/v/gitty)](https://crates.io/crates/gitty)
+![](https://img.shields.io/crates/l/gitty.svg)
+
 Command line interface for enhanced workflow when using the Git CLI. 
 
 ## How To Use
