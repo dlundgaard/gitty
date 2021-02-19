@@ -85,6 +85,42 @@ impl fmt::Display for Commit {
     }
 }
 
+pub struct Branch {
+    pub name: String, 
+    pub is_checked_out: bool,
+}
+
+impl Branch {
+    pub fn from_line(line: &str) -> Branch {
+        let (branch_status, branch_name) = line.split_at(2);
+        let name = String::from(branch_name.trim_start()); 
+        let is_checked_out = branch_status.contains("*");
+        Branch {
+            name, 
+            is_checked_out,
+        }
+    }
+
+    pub fn new_branch_placeholder() -> Branch {
+        Branch {
+            name: String::from("[<create new branch>]"), 
+            is_checked_out: false,
+        }
+    }
+}
+
+impl fmt::Display for Branch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", if self.is_checked_out { "*" } else { " " }, self.name)
+    }
+}
+
+impl PartialEq for Branch {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
 pub struct Action<'a> {
     name: String,
     callback: Box<dyn Fn() + 'a>

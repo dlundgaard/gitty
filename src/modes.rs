@@ -2,10 +2,14 @@ use dialoguer::{
     Select, 
     MultiSelect,
     Confirm,
+    Input,
 };
 use crate::utils;
 use crate::getters;
-use crate::types::Action;
+use crate::types::{
+    Action,
+    Branch,
+};
 
 pub fn select_command_mode() {
     let git_root_dir = getters::get_git_root_dir();
@@ -173,12 +177,27 @@ fn branch_mode() {
         .interact_opt()
         .unwrap();
     if let Some(selected) = selected_opt {
-        let selected_branch = &all_branches[selected].strip_prefix("* ").unwrap_or_default();
-        utils::run_command(
-            "git", 
-            &["branch", &selected_branch], 
-            &format!("git branch {} failed", selected_branch)
-        );
+        let selected_branch = &all_branches[selected];
+        let mut selected_branch_name = selected_branch.name.to_owned();
+        if selected_branch == &Branch::new_branch_placeholder() {
+            let new_branch_name: String = Input::new()
+                .with_prompt("Name of new branch")
+                .interact_text()
+                .unwrap();
+            utils::run_command(
+                "git", 
+                &["branch", &new_branch_name], 
+                &format!("git checkout {} failed", new_branch_name)
+            );
+            selected_branch_name = new_branch_name;
+        }
+        if !selected_branch.is_checked_out { 
+            utils::run_command(
+                "git", 
+                &["checkout", &selected_branch_name], 
+                &format!("git branch {} failed", selected_branch_name)
+            );
+        }
     }
 }
 
