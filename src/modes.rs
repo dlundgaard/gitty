@@ -76,14 +76,6 @@ fn staging_mode(repo_root_dir: &str) {
     if modified_files.is_empty() { 
         println!("There are no modified files");
     } else {
-        //let modified_files_staged_status = modified_files.iter()
-        //    .map(ProjectFile::is_staged)
-        //    .into_iter();
-        //let modified_files_staged_status = [true, false, true];
-        //let modified_files_zipped: Vec<(ProjectFile, bool)> = modified_files.iter()
-        //    .zip(modified_files_staged_status.into_iter())
-        //    .map(|(a, b)| (*a, *b))
-        //    .collect();
         let modified_files_zipped: Vec<(&ProjectFile, bool)> = modified_files.iter()
             .map(|pf| {
                 let can_be_staged = (&pf).is_staged();
