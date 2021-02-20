@@ -32,7 +32,10 @@ impl ProjectFile {
              _  => FileState::UNKNOWN,
         };
         let file_path = String::from(file_path_raw.trim());
-        ProjectFile { file_path, state }
+        ProjectFile { 
+            file_path, 
+            state 
+        }
     }
 
     pub fn is_staged(&self) -> bool {

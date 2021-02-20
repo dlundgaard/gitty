@@ -9,6 +9,7 @@ use crate::getters;
 use crate::types::{
     Action,
     Branch,
+    ProjectFile,
 };
 
 pub fn select_command_mode() {
@@ -17,8 +18,7 @@ pub fn select_command_mode() {
         Action::new("status", || show_status()),
         Action::new("log", || show_log()),
         Action::new("diff", || show_diff()),
-        Action::new("stage", || staging_mode(&git_root_dir)),
-        Action::new("unstage", || unstaging_mode(&git_root_dir)),
+        Action::new("staging", || staging_mode(&git_root_dir)),
         Action::new("commit", || do_commit()),
         Action::new("checkout", || checkout_mode()),
         Action::new("branch", || branch_mode()),
@@ -46,7 +46,9 @@ fn show_status() {
     utils::run_command(
         "git", 
         &["status"], 
-        "git status failed"
+        "git status failed",
+        None,
+
     );
 }
 
@@ -54,7 +56,9 @@ fn show_log() {
     utils::run_command(
         "git", 
         &["--no-pager", "log", "--reverse"], 
-        "git log failed"
+        "git log failed",
+        None,
+
     );
 }
 
@@ -62,52 +66,66 @@ fn show_diff() {
     utils::run_command(
         "git", 
         &["--no-pager", "diff", "--reverse"], 
-        "git diff failed"
+        "git diff failed",
+        None,
     );
 }
 
 fn staging_mode(repo_root_dir: &str) {
-    let unstaged_files = getters::get_not_staged_files();
-    if unstaged_files.is_empty() { 
-        println!("There are no unstaged files");
+    let modified_files = getters::get_modified_files();
+    if modified_files.is_empty() { 
+        println!("There are no modified files");
     } else {
-        let selections = MultiSelect::new()
+        //let modified_files_staged_status = modified_files.iter()
+        //    .map(ProjectFile::is_staged)
+        //    .into_iter();
+        //let modified_files_staged_status = [true, false, true];
+        //let modified_files_zipped: Vec<(ProjectFile, bool)> = modified_files.iter()
+        //    .zip(modified_files_staged_status.into_iter())
+        //    .map(|(a, b)| (*a, *b))
+        //    .collect();
+        let modified_files_zipped: Vec<(&ProjectFile, bool)> = modified_files.iter()
+            .map(|pf| {
+                let can_be_staged = (&pf).is_staged();
+                (pf, can_be_staged)
+            })
+            .collect();
+        let selected = MultiSelect::new()
             .with_prompt("Which files should be staged?")
-            .items(&unstaged_files)
-            .interact()
-            .unwrap();
-        for selected in selections {
-            let file_to_be_staged = &unstaged_files[selected].file_path;
-            utils::run_command_in_dir(
-                &repo_root_dir,
-                "git", 
-                &["add", file_to_be_staged], 
-                &format!("git add \"{}\" failed", file_to_be_staged), 
-            );
-            println!("{} added to staging area", file_to_be_staged);
+            .items_checked(&modified_files_zipped[..])
+            .interact();
+        if let Ok(selections) = selected {
+            apply_staging(repo_root_dir, modified_files, selections);
         }
     }
 }
 
-fn unstaging_mode(repo_root_dir: &str) {
-    let staged_files = getters::get_staged_files();
-    if staged_files.is_empty() { 
-        println!("There are no staged files");
-    } else {
-        let selections = MultiSelect::new()
-            .with_prompt("Which files should be unstaged?")
-            .items(&staged_files)
-            .interact()
-            .unwrap();
-        for selected in selections {
-            let file_to_be_unstaged = &staged_files[selected].file_path;
-            utils::run_command_in_dir(
-                &repo_root_dir,
+fn apply_staging(repo_root_dir: &str, modified_files: Vec<ProjectFile>, selections: Vec<usize>) {
+    let mut selection_iter = selections.into_iter();
+    let mut next_selected = selection_iter.next();
+    for i in 0..(&modified_files).len() {
+        let current = &modified_files[i];
+        let current_path = &current.file_path;
+        let current_should_be_staged = match next_selected {
+            None                        => false, 
+            Some(next_selected_index)   => if i == next_selected_index { next_selected = selection_iter.next(); true } else { false }
+        };
+        if current_should_be_staged && current.is_not_staged() {
+            utils::run_command_silent(
                 "git", 
-                &["reset", file_to_be_unstaged], 
-                &format!("git reset \"{}\" failed", file_to_be_unstaged), 
+                &["add", current_path], 
+                &format!("git add \"{}\" failed", current_path), 
+                Some(&repo_root_dir),
             );
-            println!("{} removed from staging area", file_to_be_unstaged);
+            println!("{} added to staging area", current_path);
+        } else if !current_should_be_staged && current.is_staged() {
+            utils::run_command_silent(
+                "git", 
+                &["reset", current_path], 
+                &format!("git reset \"{}\" failed", current_path), 
+                Some(&repo_root_dir),
+            );
+            println!("{} removed from staging area", current_path);
         }
     }
 }
@@ -130,7 +148,8 @@ fn do_commit() {
     utils::run_command(
         "git", 
         &["commit"], 
-        "git commit failed"
+        "git commit failed",
+        None,
     );
 }
 
@@ -138,7 +157,8 @@ fn do_push() {
     utils::run_command(
         "git", 
         &["push"], 
-        "git push failed"
+        "git push failed",
+        None,
     );
 }
 
@@ -146,7 +166,8 @@ fn do_pull() {
     utils::run_command(
         "git", 
         &["pull"], 
-        "git pull failed"
+        "git pull failed",
+        None,
     );
 }
 
@@ -163,7 +184,8 @@ fn checkout_mode() {
         utils::run_command(
             "git", 
             &["checkout", &selected_commit.hash], 
-            &format!("git checkout {} failed", selected_commit.hash)
+            &format!("git checkout {} failed", selected_commit.hash),
+            None,
         );
     }
 }
@@ -187,7 +209,8 @@ fn branch_mode() {
             utils::run_command(
                 "git", 
                 &["branch", &new_branch_name], 
-                &format!("git checkout {} failed", new_branch_name)
+                &format!("git checkout {} failed", new_branch_name),
+                None,
             );
             selected_branch_name = new_branch_name;
         }
@@ -195,7 +218,8 @@ fn branch_mode() {
             utils::run_command(
                 "git", 
                 &["checkout", &selected_branch_name], 
-                &format!("git branch {} failed", selected_branch_name)
+                &format!("git branch {} failed", selected_branch_name),
+                None,
             );
         }
     }

@@ -10,6 +10,7 @@ pub fn get_git_root_dir() -> String {
         "git",
         &["rev-parse", "--show-toplevel"],
         "getting git repo root directory failed",
+        None,
     );
     command_output.trim().to_string() // remove trailing newline from output before returning
 }
@@ -19,6 +20,7 @@ pub fn get_modified_files() -> Vec<ProjectFile> {
         "git",
         &["status", "--porcelain"],
         "getting status of changed files in repo failed",
+        Some(&get_git_root_dir()),
     );
     let lines: Vec<&str> = command_output.lines().collect();
     lines.into_iter().map(ProjectFile::from_line).collect()
@@ -29,6 +31,7 @@ pub fn get_commit_history() -> Vec<Commit> {
         "git",
         &["log", "--pretty=format:%h | %aD | %s"],
         "getting commit history failed",
+        None,
     );
     let lines: Vec<&str> = command_output.lines().collect();
     lines.into_iter().map(Commit::from_line).collect()
@@ -39,6 +42,7 @@ pub fn get_branches() -> Vec<Branch> {
         "git",
         &["branch"],
         "getting branches failed",
+        None,
     );
     let lines: Vec<&str> = command_output.lines().collect();
     let mut branches: Vec<Branch> = lines.into_iter().map(Branch::from_line).collect();
