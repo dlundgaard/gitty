@@ -13,7 +13,7 @@ What would you like to do?:
 > status
   log
   diff
-  stage
+  staging
   commit
   checkout
   branch
