@@ -3,7 +3,7 @@
 [![](https://img.shields.io/crates/v/gitty)](https://crates.io/crates/gitty)
 ![](https://img.shields.io/crates/l/gitty.svg)
 
-Command line interface for enhanced workflow when using the Git CLI. 
+Interactive command line interface for enhanced workflow when using the Git CLI.
 
 ## How To Use
 You run `gitty` simply by calling `gitty` from the command line, no arguments, no bells and whistles. This will prompt you as to which `git` command you would like execute. 
