@@ -14,7 +14,6 @@ What would you like to do?:
   log
   diff
   stage
-  unstage
   commit
   checkout
   branch
