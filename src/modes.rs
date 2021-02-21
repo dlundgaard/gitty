@@ -31,14 +31,18 @@ pub fn select_command_mode() {
 
 	loop {
 		let selected = Select::new()
-			.with_prompt("\nWhat would you like to do")
+			.with_prompt("What would you like to do")
 			.items(&actions)
 			.default(last_selected)
-			.interact()
+			.interact_opt()
 			.unwrap();
-        last_selected = selected;
-        let selected_action = &actions[selected];
-        selected_action.run_action();
+        if let Some(selected) = selected { 
+            last_selected = selected;
+            let selected_action = &actions[selected];
+            selected_action.run_action();
+        } else {
+            break;
+        }
     }
 }
 
@@ -48,7 +52,6 @@ fn show_status() {
         &["status"], 
         "git status failed",
         None,
-
     );
 }
 
@@ -58,7 +61,6 @@ fn show_log() {
         &["--no-pager", "log", "--reverse"], 
         "git log failed",
         None,
-
     );
 }
 
