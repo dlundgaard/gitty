@@ -15,23 +15,23 @@ use crate::types::{
 pub fn select_command_mode() {
     let git_root_dir = getters::get_git_root_dir();
     let actions: Vec<Action> = vec![
-        Action::new("status", || show_status()),
-        Action::new("log", || show_log()),
-        Action::new("diff", || show_diff()),
-        Action::new("staging", || staging_mode(&git_root_dir)),
-        Action::new("commit", || do_commit()),
+        Action::new("status",   || show_status()),
+        Action::new("log",      || show_log()),
+        Action::new("diff",     || show_diff()),
+        Action::new("staging",  || staging_mode(&git_root_dir)),
+        Action::new("commit",   || do_commit()),
         Action::new("checkout", || checkout_mode()),
-        Action::new("branch", || branch_mode()),
-        Action::new("push", || do_push()),
-        Action::new("pull", || do_pull()),
-        Action::new("exit", || utils::exit_gracefully()),
+        Action::new("branch",   || branch_mode()),
+        Action::new("push",     || do_push()),
+        Action::new("pull",     || do_pull()),
+        Action::new("exit",     || utils::exit_gracefully()),
     ];
 
     let mut last_selected = 0;
 
 	loop {
 		let selected = Select::new()
-			.with_prompt("\nWhat would you like to do?")
+			.with_prompt("\nWhat would you like to do")
 			.items(&actions)
 			.default(last_selected)
 			.interact()
@@ -169,6 +169,7 @@ fn checkout_mode() {
         .with_prompt("Which commit would you like to checkout?")
         .items(&all_commits)
         .default(0)
+        .paged(true)
         .interact_opt()
         .unwrap();
     if let Some(selected) = selected_opt {

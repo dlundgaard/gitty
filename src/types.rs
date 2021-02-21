@@ -34,7 +34,7 @@ impl ProjectFile {
         let file_path = String::from(file_path_raw.trim());
         ProjectFile { 
             file_path, 
-            state 
+            state,
         }
     }
 
@@ -63,13 +63,17 @@ pub struct Commit {
 }
 
 impl Commit {
+    pub fn message_extract_width() -> usize {
+        60
+    }
+
     pub fn from_line(line: &str) -> Commit {
-        let mut split_line = line.split(" | ");
+        let mut split_line = line.splitn(3, " | ");
         let hash: &str = split_line.next().unwrap();
         let date: &str = split_line.next().unwrap();
         let commit_message: &str = split_line.next().unwrap();
         let mut message_extract = String::from(commit_message.split("\n").next().unwrap());
-        message_extract.truncate(60);
+        message_extract.truncate(Commit::message_extract_width());
         message_extract = String::from(message_extract.trim());
         if commit_message.len() > message_extract.len() {
             message_extract.push_str("...");
@@ -84,7 +88,7 @@ impl Commit {
 
 impl fmt::Display for Commit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} | {} | {}", self.hash, self.date, self.message_extract)
+        write!(f, "{} | {:^31} | {}", self.hash, self.date, self.message_extract)
     }
 }
 
