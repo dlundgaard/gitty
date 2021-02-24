@@ -16,14 +16,12 @@ pub fn select_command_mode() {
     let git_root_dir = getters::get_git_root_dir();
     let actions: Vec<Action> = vec![
         Action::new("status",   || show_status()),
-        Action::new("log",      || show_log()),
-        Action::new("diff",     || show_diff()),
         Action::new("staging",  || staging_mode(&git_root_dir)),
         Action::new("commit",   || do_commit()),
         Action::new("checkout", || checkout_mode()),
-        Action::new("branch",   || branch_mode()),
-        Action::new("push",     || do_push()),
-        Action::new("pull",     || do_pull()),
+        Action::new("remote",   || remote_mode()),
+        Action::new("log",      || show_log()),
+        Action::new("diff",     || show_diff()),
         Action::new("exit",     || utils::exit_gracefully()),
     ];
 
@@ -36,9 +34,9 @@ pub fn select_command_mode() {
 			.default(last_selected)
 			.interact_opt()
 			.unwrap();
-        if let Some(selected) = selected { 
-            last_selected = selected;
-            let selected_action = &actions[selected];
+        if let Some(selected_opt) = selected { 
+            last_selected = selected_opt;
+            let selected_action = &actions[selected_opt];
             selected_action.run_action();
         } else {
             break;
@@ -53,6 +51,7 @@ fn show_status() {
         "git status failed",
         None,
     );
+    println!();
 }
 
 fn show_log() {
@@ -62,6 +61,7 @@ fn show_log() {
         "git log failed",
         None,
     );
+    println!();
 }
 
 fn show_diff() {
@@ -71,6 +71,7 @@ fn show_diff() {
         "git diff failed",
         None,
     );
+    println!();
 }
 
 fn staging_mode(repo_root_dir: &str) {
@@ -85,7 +86,7 @@ fn staging_mode(repo_root_dir: &str) {
             })
             .collect();
         let selected = MultiSelect::new()
-            .with_prompt("Which files should be staged?")
+            .with_prompt("Which files should be staged")
             .items_checked(&modified_files_zipped[..])
             .interact();
         if let Ok(selections) = selected {
@@ -132,7 +133,7 @@ fn do_commit() {
         return;
     } else if unstaged_files.len() > 0 {
         let commit_despite_unstaged_file = Confirm::new()
-            .with_prompt("There are modified files that have not been staged. Do you want to commit anyway?")
+            .with_prompt("There are modified files that have not been staged. Do you want to commit anyway")
             .interact()
             .unwrap();
         if !commit_despite_unstaged_file { 
@@ -147,28 +148,26 @@ fn do_commit() {
     );
 }
 
-fn do_push() {
-    utils::run_command(
-        "git", 
-        &["push"], 
-        "git push failed",
-        None,
-    );
-}
-
-fn do_pull() {
-    utils::run_command(
-        "git", 
-        &["pull"], 
-        "git pull failed",
-        None,
-    );
-}
-
 fn checkout_mode() {
+    let actions: Vec<Action> = vec![
+        Action::new("switch branch",        || branch_mode()),
+        Action::new("checkout a commit",    || move_head_mode()),
+    ];
+    let selected_opt = Select::new()
+        .items(&actions)
+        .default(0)
+        .interact_opt()
+        .unwrap();
+    if let Some(selected) = selected_opt {
+        let selected_action = &actions[selected];
+        selected_action.run_action();
+    }
+}
+
+fn move_head_mode() {
     let all_commits = getters::get_commit_history();
     let selected_opt = Select::new()
-        .with_prompt("Which commit would you like to checkout?")
+        .with_prompt("Which commit would you like to checkout")
         .items(&all_commits)
         .default(0)
         .paged(true)
@@ -188,7 +187,7 @@ fn checkout_mode() {
 fn branch_mode() {
     let all_branches = getters::get_branches();
     let selected_opt = Select::new()
-        .with_prompt("Which branch would you like to checkout?")
+        .with_prompt("Which branch would you like to checkout")
         .items(&all_branches)
         .default(0)
         .interact_opt()
@@ -212,11 +211,46 @@ fn branch_mode() {
         if !selected_branch.is_checked_out { 
             utils::run_command(
                 "git", 
-                &["checkout", &selected_branch_name], 
-                &format!("git branch {} failed", selected_branch_name),
+                &["switch", &selected_branch_name], 
+                &format!("git switch {} failed", selected_branch_name),
                 None,
             );
         }
     }
+}
+
+fn remote_mode() {
+    let actions: Vec<Action> = vec![
+        Action::new("pull", || do_pull()),
+        Action::new("push", || do_push()),
+    ];
+    let selected_opt = Select::new()
+        .items(&actions)
+        .default(0)
+        .interact_opt()
+        .unwrap();
+    if let Some(selected) = selected_opt {
+        let selected_action = &actions[selected];
+        selected_action.run_action();
+    }
+
+}
+
+fn do_push() {
+    utils::run_command(
+        "git", 
+        &["push"], 
+        "git push failed",
+        None,
+    );
+}
+
+fn do_pull() {
+    utils::run_command(
+        "git", 
+        &["pull"], 
+        "git pull failed",
+        None,
+    );
 }
 
