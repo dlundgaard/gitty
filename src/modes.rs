@@ -170,7 +170,7 @@ fn move_head_mode() {
         .with_prompt("Which commit would you like to checkout")
         .items(&all_commits)
         .default(0)
-        .paged(true)
+        .max_length(10)
         .interact_opt()
         .unwrap();
     if let Some(selected) = selected_opt {

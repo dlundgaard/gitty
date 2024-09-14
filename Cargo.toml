@@ -1,6 +1,6 @@
 [package]
 name = "gitty"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["dlundgaard <dlundgaard8@gmail.com>"]
 edition = "2018"
 description = "Interactive command line interface for enhanced workflow when using the Git CLI"
@@ -11,5 +11,5 @@ categories = ["command-line-interface", "command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2.33.3"
-dialoguer = "0.7.1"
+clap = "4.5.17"
+dialoguer = "0.11.0"
